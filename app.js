@@ -338,12 +338,9 @@ async function fetchTelemetry() {
         if (data.is_supporter) {
             donateBtn.style.display = 'none';
             supporterBadge.style.display = 'inline-flex';
-        } else if (data.settings && data.settings.donate_url && data.settings.donate_url.trim() !== '') {
-            donateBtn.href = data.settings.donate_url;
-            donateBtn.style.display = 'inline-flex';
-            supporterBadge.style.display = 'none';
         } else {
-            donateBtn.style.display = 'none';
+            donateBtn.href = 'https://ko-fi.com/smallstep';
+            donateBtn.style.display = 'inline-flex';
             supporterBadge.style.display = 'none';
         }
 
@@ -454,13 +451,13 @@ function setupEventListeners() {
     document.getElementById('open-settings-btn').addEventListener('click', async () => {
         const res = await fetch('/api/telemetry');
         const data = await res.json();
+        const s = data.settings || {};
         document.getElementById('setting-language').value = s.language || 'de';
         document.getElementById('input-price').value = s.electricity_price || 0.35;
         document.getElementById('input-mon-w').value = s.monitor_wattage || 'auto';
         document.getElementById('input-cpu-tdp').value = s.cpu_tdp || 95;
         document.getElementById('input-psu-eff').value = s.psu_efficiency || 88;
         document.getElementById('input-interval').value = s.logging_interval || 2.0;
-        document.getElementById('input-donate-url').value = s.donate_url || 'https://ko-fi.com/smallstep';
         document.getElementById('input-supporter-code').value = s.supporter_code || '';
         document.getElementById('input-is-logging').checked = s.is_logging === 'true';
 
@@ -483,7 +480,6 @@ function setupEventListeners() {
             cpu_tdp: document.getElementById('input-cpu-tdp').value,
             psu_efficiency: document.getElementById('input-psu-eff').value,
             logging_interval: document.getElementById('input-interval').value,
-            donate_url: document.getElementById('input-donate-url').value,
             supporter_code: document.getElementById('input-supporter-code').value,
             is_logging: document.getElementById('input-is-logging').checked ? 'true' : 'false'
         };

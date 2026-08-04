@@ -59,8 +59,7 @@ def init_db():
             "cpu_tdp": "95.0",
             "psu_efficiency": "88.0",
             "logging_interval": "2.0",
-            "is_logging": "true",
-            "donate_url": "https://ko-fi.com/smallstep"
+            "is_logging": "true"
         }
         for k, v in defaults.items():
             cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (k, v))
