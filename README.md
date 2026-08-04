@@ -1,4 +1,4 @@
-# ⚡ PowerPulse — PC & Monitor Power Consumption Tracker
+#  PowerPulse — PC & Monitor Power Consumption Tracker
 
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20Me-ffdd00?style=for-the-badge&logo=ko-fi&logoColor=black)](https://ko-fi.com/smallstep)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-00f2fe?style=for-the-badge&logo=windows)](https://github.com/octavianraglean-bit/PowerPulse)
