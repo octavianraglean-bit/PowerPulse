@@ -1,18 +1,118 @@
-let currentPeriod = 'recent';
-let liveChart = null;
-let pollTimer = null;
-let currentPrice = 0.35;
+const i18n = {
+    de: {
+        subtitle: "Echtzeit-Stromverbrauchs- & Kostenanalyse",
+        donate: "☕ Spenden",
+        verified_supporter: "⭐ Verified Supporter",
+        logging_active: "Protokollierung aktiv",
+        logging_paused: "Protokollierung pausiert",
+        settings: "⚙️ Einstellungen",
+        export_csv: "📥 CSV Export",
+        hero_title: "Aktueller Gesamtverbrauch",
+        hero_footer: "Inkl. ~12% Netzteil-Verlust & Monitor",
+        today_title: "Verbrauch Heute",
+        today_energy: "Energie",
+        today_cost: "Geschätzte Kosten",
+        total_title: "Gesamtverbrauch (Protokoll)",
+        total_energy: "Gesamt Energie",
+        total_cost: "Gesamtkosten",
+        forecast_title: "Prognose (Aktuelle Last)",
+        cost_per_hour: "Kosten pro Stunde",
+        cost_per_day: "Prognose 24h",
+        comp_title: "Komponenten-Leistungsaufnahme",
+        comp_cpu: "Prozessor (CPU)",
+        comp_gpu: "Grafikkarte",
+        comp_monitor: "Bildschirm",
+        chart_title: "Echtzeit-Leistungsverlauf",
+        chart_subtitle: "Leistungsaufnahme der letzten Minuten (Watt)",
+        btn_live: "Echtzeit (60s)",
+        btn_hourly: "Heute (Stündlich)",
+        btn_daily: "Tagesübersicht",
+        label_language: "Sprache / Language",
+        label_price: "Strompreis (€ / kWh)"
+    },
+    en: {
+        subtitle: "Real-time Power Usage & Cost Analytics",
+        donate: "☕ Donate",
+        verified_supporter: "⭐ Verified Supporter",
+        logging_active: "Logging active",
+        logging_paused: "Logging paused",
+        settings: "⚙️ Settings",
+        export_csv: "📥 Export CSV",
+        hero_title: "Current Total Consumption",
+        hero_footer: "Incl. ~12% PSU efficiency loss & Monitor",
+        today_title: "Today's Consumption",
+        today_energy: "Energy",
+        today_cost: "Estimated Cost",
+        total_title: "Total Consumption (Log)",
+        total_energy: "Total Energy",
+        total_cost: "Total Cost",
+        forecast_title: "Forecast (Current Load)",
+        cost_per_hour: "Cost per Hour",
+        cost_per_day: "Forecast 24h",
+        comp_title: "Component Power Draw",
+        comp_cpu: "Processor (CPU)",
+        comp_gpu: "Graphics Card",
+        comp_monitor: "Display / Monitor",
+        chart_title: "Real-Time Power History",
+        chart_subtitle: "Power consumption in recent minutes (Watts)",
+        btn_live: "Real-time (60s)",
+        btn_hourly: "Today (Hourly)",
+        btn_daily: "Daily Overview",
+        label_language: "Language / Sprache",
+        label_price: "Electricity Price (€ / kWh)"
+    }
+};
+
+let currentLang = 'de';
+
+function applyLanguage(lang) {
+    if (!i18n[lang]) lang = 'de';
+    currentLang = lang;
+    const dict = i18n[lang];
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (dict[key]) {
+            if (el.tagName === 'INPUT' && el.type === 'placeholder') {
+                el.placeholder = dict[key];
+            } else {
+                el.textContent = dict[key];
+            }
+        }
+    });
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     initChart();
     fetchTelemetry();
     fetchHistoryData(currentPeriod);
+    checkForUpdates();
 
     // Poll telemetry every 1500 ms
     pollTimer = setInterval(fetchTelemetry, 1500);
 
     setupEventListeners();
 });
+
+async function checkForUpdates() {
+    try {
+        const res = await fetch('/api/update_check');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.update_available) {
+            const banner = document.getElementById('update-banner');
+            const versionTag = document.getElementById('update-version-tag');
+            const link = document.getElementById('update-download-link');
+            
+            if (banner && versionTag && link) {
+                versionTag.textContent = data.latest_version;
+                link.href = data.download_url;
+                banner.style.display = 'flex';
+            }
+        }
+    } catch (e) {
+        console.error("Update check error", e);
+    }
+}
 
 function initChart() {
     const ctx = document.getElementById('liveChart').getContext('2d');
@@ -132,16 +232,26 @@ async function fetchTelemetry() {
         document.getElementById('gpu-bar-fill').style.width = `${Math.min(100, (data.gpu_w / 170) * 100)}%`;
         document.getElementById('mon-bar-fill').style.width = `${Math.min(100, (data.monitor_w / 50) * 100)}%`;
 
-        // Update logging badge & Donate button
+        // Update logging badge & Donate button / Supporter badge
         const badge = document.getElementById('logging-badge');
         const badgeText = document.getElementById('logging-status-text');
         const donateBtn = document.getElementById('donate-btn');
+        const supporterBadge = document.getElementById('supporter-badge');
 
-        if (data.settings && data.settings.donate_url && data.settings.donate_url.trim() !== '') {
+        if (data.settings && data.settings.language && data.settings.language !== currentLang) {
+            applyLanguage(data.settings.language);
+        }
+
+        if (data.is_supporter) {
+            donateBtn.style.display = 'none';
+            supporterBadge.style.display = 'inline-flex';
+        } else if (data.settings && data.settings.donate_url && data.settings.donate_url.trim() !== '') {
             donateBtn.href = data.settings.donate_url;
             donateBtn.style.display = 'inline-flex';
+            supporterBadge.style.display = 'none';
         } else {
             donateBtn.style.display = 'none';
+            supporterBadge.style.display = 'none';
         }
 
         if (data.is_logging) {
@@ -251,32 +361,41 @@ function setupEventListeners() {
     document.getElementById('open-settings-btn').addEventListener('click', async () => {
         const res = await fetch('/api/telemetry');
         const data = await res.json();
-        const s = data.settings || {};
-
+        document.getElementById('setting-language').value = s.language || 'de';
         document.getElementById('input-price').value = s.electricity_price || 0.35;
         document.getElementById('input-mon-w').value = s.monitor_wattage || 'auto';
         document.getElementById('input-cpu-tdp').value = s.cpu_tdp || 95;
         document.getElementById('input-psu-eff').value = s.psu_efficiency || 88;
         document.getElementById('input-interval').value = s.logging_interval || 2.0;
-        document.getElementById('input-donate-url').value = s.donate_url || 'https://ko-fi.com';
+        document.getElementById('input-donate-url').value = s.donate_url || 'https://ko-fi.com/smallstep';
+        document.getElementById('input-supporter-code').value = s.supporter_code || '';
         document.getElementById('input-is-logging').checked = s.is_logging === 'true';
 
         modal.classList.add('active');
+    });
+
+    document.getElementById('setting-language').addEventListener('change', (e) => {
+        applyLanguage(e.target.value);
     });
 
     document.getElementById('close-settings-btn').addEventListener('click', () => modal.classList.remove('active'));
     document.getElementById('cancel-settings-btn').addEventListener('click', () => modal.classList.remove('active'));
 
     document.getElementById('save-settings-btn').addEventListener('click', async () => {
+        const langVal = document.getElementById('setting-language').value;
         const payload = {
+            language: langVal,
             electricity_price: document.getElementById('input-price').value,
             monitor_wattage: document.getElementById('input-mon-w').value,
             cpu_tdp: document.getElementById('input-cpu-tdp').value,
             psu_efficiency: document.getElementById('input-psu-eff').value,
             logging_interval: document.getElementById('input-interval').value,
             donate_url: document.getElementById('input-donate-url').value,
+            supporter_code: document.getElementById('input-supporter-code').value,
             is_logging: document.getElementById('input-is-logging').checked ? 'true' : 'false'
         };
+
+        applyLanguage(langVal);
 
         await fetch('/api/settings', {
             method: 'POST',
@@ -289,7 +408,8 @@ function setupEventListeners() {
     });
 
     document.getElementById('reset-logs-btn').addEventListener('click', async () => {
-        if (confirm("Möchtest du wirklich alle aufgezeichneten Verbrauchs-Protokolle löschen?")) {
+        const confirmMsg = currentLang === 'en' ? "Do you really want to delete all logged power usage history?" : "Möchtest du wirklich alle aufgezeichneten Verbrauchs-Protokolle löschen?";
+        if (confirm(confirmMsg)) {
             await fetch('/api/reset', { method: 'POST' });
             modal.classList.remove('active');
             fetchTelemetry();

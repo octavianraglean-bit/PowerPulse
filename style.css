@@ -132,6 +132,28 @@ body {
     gap: 12px;
 }
 
+.update-banner {
+    background: linear-gradient(135deg, rgba(0, 242, 254, 0.18), rgba(139, 92, 246, 0.18));
+    border: 1px solid rgba(0, 242, 254, 0.4);
+    color: var(--text-primary);
+    padding: 12px 20px;
+    border-radius: var(--radius-md);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    box-shadow: 0 4px 15px rgba(0, 242, 254, 0.15);
+}
+
+.update-banner a {
+    color: var(--accent-cyan);
+    text-decoration: underline;
+    font-weight: 700;
+    margin-left: auto;
+}
+
 .status-badge {
     display: flex;
     align-items: center;
@@ -143,6 +165,20 @@ body {
     border-radius: 20px;
     font-size: 0.85rem;
     font-weight: 500;
+}
+
+.supporter-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.1));
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    color: #fbbf24;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
 }
 
 .status-badge .dot {

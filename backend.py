@@ -6,6 +6,8 @@ import sqlite3
 import threading
 import subprocess
 import urllib.parse
+import urllib.request
+import hashlib
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import ctypes
 
@@ -58,7 +60,7 @@ def init_db():
             "psu_efficiency": "88.0",
             "logging_interval": "2.0",
             "is_logging": "true",
-            "donate_url": "https://ko-fi.com"
+            "donate_url": "https://ko-fi.com/smallstep"
         }
         for k, v in defaults.items():
             cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (k, v))
@@ -123,6 +125,46 @@ def is_display_on():
         return fg_window != 0
     except Exception:
         return True
+
+def verify_dynamic_supporter_code(code_str, api_url=None):
+    if not code_str:
+        return False
+    code = code_str.strip()
+    code_upper = code.upper()
+    
+    # --- OPTION A: Local Checksum & Key Verification ---
+    # 1. Accept static / supporter keys
+    if code_upper in ["SUPPORTER2026", "THANKS2026", "SMALLSTEP", "DONATED"]:
+        return True
+
+    # 2. Accept individual transaction keys starting with KP- or KOFI-
+    if code_upper.startswith("KP-") or code_upper.startswith("KOFI-"):
+        parts = code_upper.split("-")
+        if len(parts) >= 2 and len(parts[1]) >= 4:
+            return True
+
+    # 3. Dynamic checksum hash verification
+    clean_code = code_upper.replace("-", "").replace(" ", "")
+    if len(clean_code) >= 8:
+        h = hashlib.sha256(("POWERPULSE_SALT_" + clean_code[:-2]).encode('utf-8')).hexdigest().upper()
+        if h[:2] == clean_code[-2:] or len(clean_code) == 12:
+            return True
+
+    # --- OPTION B: Online API Server Verification (if URL configured or email provided) ---
+    if api_url and api_url.startswith("http") and ("@" in code or len(code) >= 5):
+        try:
+            encoded_val = urllib.parse.quote(code)
+            verify_endpoint = f"{api_url}?supporter={encoded_val}"
+            req = urllib.request.Request(verify_endpoint, headers={'User-Agent': 'PowerPulseApp/1.0'})
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                if resp.status == 200:
+                    res_data = json.loads(resp.read().decode('utf-8'))
+                    if res_data.get("verified") is True:
+                        return True
+        except Exception:
+            pass
+
+    return False
 
 def get_connected_monitors():
     monitors = []
@@ -291,11 +333,37 @@ class RequestHandler(BaseHTTPRequestHandler):
                 "all_cost": all_cost,
                 "connected_monitors": get_connected_monitors(),
                 "is_logging": settings.get("is_logging", "true").lower() == "true",
+                "is_supporter": verify_dynamic_supporter_code(
+                    settings.get("supporter_code", ""),
+                    api_url=settings.get("supporter_api_url", "")
+                ),
                 "settings": settings
             })
 
+        elif path == '/api/update_check':
+            current_version = "v1.0.0"
+            github_url = "https://api.github.com/repos/octavianraglean-bit/PowerPulse/releases/latest"
+            update_data = {
+                "current_version": current_version,
+                "latest_version": current_version,
+                "update_available": False,
+                "download_url": "https://github.com/octavianraglean-bit/PowerPulse/releases"
+            }
+            try:
+                req = urllib.request.Request(github_url, headers={'User-Agent': 'PowerPulseApp/1.0'})
+                with urllib.request.urlopen(req, timeout=3) as resp:
+                    if resp.status == 200:
+                        rel_info = json.loads(resp.read().decode('utf-8'))
+                        tag_name = rel_info.get("tag_name", current_version)
+                        if tag_name != current_version:
+                            update_data["update_available"] = True
+                            update_data["latest_version"] = tag_name
+                            update_data["download_url"] = rel_info.get("html_url", update_data["download_url"])
+            except Exception:
+                pass
+            self.send_json(update_data)
+
         elif path == '/api/history':
-            period = query.get("period", ["recent"])[0]
             with db_lock:
                 conn = get_db()
                 cursor = conn.cursor()
