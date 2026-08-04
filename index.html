@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PowerPulse — PC & Monitor Stromverbraucher</title>
+    <!-- Google Fonts & Chart.js -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="navbar">
+            <div class="brand">
+                <div class="pulse-icon">⚡</div>
+                <div>
+                    <h1>PowerPulse</h1>
+                    <p class="subtitle">Echtzeit-Stromverbrauchs- & Kostenanalyse</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <a href="https://ko-fi.com" target="_blank" class="btn btn-donate" id="donate-btn">☕ Spenden</a>
+                <div class="status-badge" id="logging-badge">
+                    <span class="dot"></span>
+                    <span id="logging-status-text">Protokollierung aktiv</span>
+                </div>
+                <button class="btn btn-secondary" id="open-settings-btn">⚙️ Einstellungen</button>
+                <button class="btn btn-primary" id="export-csv-btn">📥 CSV Export</button>
+            </div>
+        </header>
+
+        <!-- Main Stats Grid -->
+        <section class="stats-grid">
+            <!-- Total Live Power Tile -->
+            <div class="card card-hero">
+                <div class="card-header">
+                    <h3>Aktueller Gesamtverbrauch</h3>
+                    <span class="live-pill">LIVE</span>
+                </div>
+                <div class="hero-value-wrapper">
+                    <div class="hero-value" id="val-total-w">0.0</div>
+                    <div class="hero-unit">Watt</div>
+                </div>
+                <div class="power-meter-bar">
+                    <div class="meter-fill" id="total-meter-fill" style="width: 0%;"></div>
+                </div>
+                <div class="hero-footer">
+                    <span>Inkl. ~12% Netzteil-Verlust & Monitor</span>
+                </div>
+            </div>
+
+            <!-- Today's Energy & Cost -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Verbrauch Heute</h3>
+                    <span class="icon">📅</span>
+                </div>
+                <div class="metric-group">
+                    <div class="metric-item">
+                        <span class="label">Energie</span>
+                        <div class="value"><span id="val-today-kwh">0.0000</span> <small>kWh</small></div>
+                    </div>
+                    <div class="metric-item highlight">
+                        <span class="label">Geschätzte Kosten</span>
+                        <div class="value"><span id="val-today-cost">0.00</span> <small>€</small></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Energy & Cost -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Gesamtverbrauch (Protokoll)</h3>
+                    <span class="icon">📊</span>
+                </div>
+                <div class="metric-group">
+                    <div class="metric-item">
+                        <span class="label">Gesamt Energie</span>
+                        <div class="value"><span id="val-all-kwh">0.0000</span> <small>kWh</small></div>
+                    </div>
+                    <div class="metric-item highlight">
+                        <span class="label">Gesamtkosten</span>
+                        <div class="value"><span id="val-all-cost">0.00</span> <small>€</small></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cost Estimation Forecast -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Prognose (Aktuelle Last)</h3>
+                    <span class="icon">💡</span>
+                </div>
+                <div class="metric-group">
+                    <div class="metric-item">
+                        <span class="label">Kosten pro Stunde</span>
+                        <div class="value"><span id="val-cost-hour">0.000</span> <small>€/h</small></div>
+                    </div>
+                    <div class="metric-item">
+                        <span class="label">Prognose 24h</span>
+                        <div class="value"><span id="val-cost-day">0.00</span> <small>€/Tag</small></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Components Breakdown -->
+        <section class="breakdown-section">
+            <h2 class="section-title">Komponenten-Leistungsaufnahme</h2>
+            <div class="breakdown-grid">
+                <!-- CPU Tile -->
+                <div class="card card-sm">
+                    <div class="comp-icon cpu-color">💻</div>
+                    <div class="comp-info">
+                        <span class="comp-label">Prozessor (CPU)</span>
+                        <div class="comp-value"><span id="val-cpu-w">0.0</span> W</div>
+                    </div>
+                    <div class="comp-bar"><div class="fill cpu-fill" id="cpu-bar-fill"></div></div>
+                </div>
+
+                <!-- GPU Tile -->
+                <div class="card card-sm">
+                    <div class="comp-icon gpu-color">🎮</div>
+                    <div class="comp-info">
+                        <span class="comp-label">Grafikkarte (RTX 3060)</span>
+                        <div class="comp-value"><span id="val-gpu-w">0.0</span> W</div>
+                    </div>
+                    <div class="comp-bar"><div class="fill gpu-fill" id="gpu-bar-fill"></div></div>
+                </div>
+
+                <!-- Monitor Tile -->
+                <div class="card card-sm">
+                    <div class="comp-icon mon-color">🖥️</div>
+                    <div class="comp-info">
+                        <span class="comp-label">Bildschirm (<span id="mon-detected-names">Monitor</span>)</span>
+                        <div class="comp-value"><span id="val-mon-w">0.0</span> W</div>
+                    </div>
+                    <div class="comp-bar"><div class="fill mon-fill" id="mon-bar-fill"></div></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Charts Section -->
+        <section class="charts-section">
+            <div class="card card-chart main-chart-card">
+                <div class="chart-header">
+                    <div>
+                        <h2>Echtzeit-Leistungsverlauf</h2>
+                        <p>Leistungsaufnahme der letzten Minuten (Watt)</p>
+                    </div>
+                    <div class="chart-tab-buttons">
+                        <button class="tab-btn active" data-period="recent">Echtzeit (60s)</button>
+                        <button class="tab-btn" data-period="today">Heute (Stündlich)</button>
+                        <button class="tab-btn" data-period="daily">Tagesübersicht</button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="liveChart"></canvas>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-backdrop" id="settings-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>⚙️ Einstellungen</h2>
+                <button class="close-btn" id="close-settings-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="input-price">Strompreis (€ pro kWh)</label>
+                    <input type="number" step="0.01" id="input-price" value="0.35">
+                    <small>Standard in DE ist ca. 0.30 - 0.40 €/kWh</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="input-mon-w">Monitor Leistungsaufnahme (Watt)</label>
+                    <input type="number" step="1" id="input-mon-w" value="30">
+                    <small>Typischer Verbrauch eines 24-27" Monitors: 25-40 Watt</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="input-cpu-tdp">CPU Maximal TDP / Richtwert (Watt)</label>
+                    <input type="number" step="5" id="input-cpu-tdp" value="95">
+                    <small>Maximaler Verbrauch deiner CPU unter Volllast</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="input-psu-eff">Netzteil Wirkungsgrad (%)</label>
+                    <input type="number" step="1" id="input-psu-eff" value="88">
+                    <small>80 Plus Gold / Platinum entspricht ca. 88-92%</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="input-interval">Mess-Intervall (Sekunden)</label>
+                    <input type="number" step="0.5" id="input-interval" value="2.0">
+                </div>
+
+                <div class="form-group">
+                    <label for="input-donate-url">Spenden-Link (Ko-fi / PayPal / Buy Me a Coffee)</label>
+                    <input type="text" id="input-donate-url" placeholder="https://ko-fi.com/deinname">
+                    <small>Diesen Link öffnen Nutzer beim Klick auf den Spenden-Button</small>
+                </div>
+
+                <div class="form-group toggle-group">
+                    <label for="input-is-logging">Protokollierung in Datenbank aktiv</label>
+                    <input type="checkbox" id="input-is-logging" checked>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" id="reset-logs-btn">🗑️ Protokoll zurücksetzen</button>
+                <div>
+                    <button class="btn btn-secondary" id="cancel-settings-btn">Abbrechen</button>
+                    <button class="btn btn-primary" id="save-settings-btn">Speichern</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
